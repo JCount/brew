@@ -92,6 +92,10 @@ module Homebrew
       elsif (url_match = arg.match HOMEBREW_PULL_OR_COMMIT_URL_REGEX)
         url, user, repo, issue = *url_match
         tap = Tap.fetch(user, repo) if repo.start_with?("homebrew-")
+      elsif ARGV.include?("--redirect") && (arbitrary_url_match = arg.match %r{https?://\S*})
+        resolved_url = resolve_redirect(arbitrary_url_match)
+        ## call `brew pull` with new url ##
+        odie "resolved to #{resolved_url} but here ends the implementation"
       else
         odie "Not a GitHub pull request or commit: #{arg}"
       end
@@ -275,6 +279,23 @@ module Homebrew
       opoo "You must set HOMEBREW_BINTRAY_USER and HOMEBREW_BINTRAY_KEY to add or update bottles on Bintray!"
     end
     published
+  end
+
+  def resolve_redirect(url, hop_limit = 10)
+    in_url = URI.parse(url.to_s)
+    odie "Too many redirections" if hop_limit == 0
+
+    response = Net::HTTP.get_response(in_url)
+    case response
+    when Net::HTTPSuccess then
+      in_url
+    when Net::HTTPRedirection then
+      location = response['location']
+      ohai "redirected to #{location}"
+      resolve_redirect(location, hop_limit - 1)
+    else
+      odie "Failed to resolve"
+    end
   end
 
   def pull_patch(url, description = nil)
