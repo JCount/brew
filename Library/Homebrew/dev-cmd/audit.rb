@@ -317,7 +317,7 @@ class FormulaAuditor
       _, last_alias_version =
         File.basename(versioned_formulae.sort.reverse.first)
             .gsub(/\.rb$/, "").split("@")
-      major, minor, = formula.version.to_s.split(".")
+      major, minor, = formula.version.to_s.scan(/[\d-]+|[A-Za-z]+/)
       alias_name_major = "#{formula.name}@#{major}"
       alias_name_major_minor = "#{alias_name_major}.#{minor}"
       alias_name = if last_alias_version.split(".").length == 1
