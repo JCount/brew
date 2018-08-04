@@ -306,28 +306,44 @@ module Homebrew
       end
 
       def check_access_prefix_directories
+        missing_dirs = []
         not_writable_dirs = []
 
         Keg::ALL_TOP_LEVEL_DIRECTORIES.each do |dir|
           path = HOMEBREW_PREFIX/dir
-          next unless path.exist?
-          next if path.writable_real?
-          not_writable_dirs << path
+          if path.exist?
+            not_writable_dirs << path unless path.writable_real?
+            next
+          end
+          missing_dirs << path
         end
 
-        return if not_writable_dirs.empty?
+        message = ""
 
-        <<~EOS
-          The following directories are not writable:
-          #{not_writable_dirs.join("\n")}
+        if !missing_dirs.empty?
+          message += <<~EOS
+            The following top-level directories are missing:
+            #{missing_dirs.join("\n")}
 
-          This can happen if you "sudo make install" software that isn't managed
-          by Homebrew. If a formula tries to write a file to this directory, the
-          install will fail during the link step.
+            You should create these directories to resolve potenetial issues.
+              sudo mkdir #{missing_dirs.join(" ")} && \\
+              sudo chown -R $(whoami) #{missing_dirs.join(" ")}
+          EOS
+        elsif !not_writable_dirs.empty?
+          message += <<~EOS
 
-          You should change the ownership of these directories to your account.
-            sudo chown -R $(whoami) #{not_writable_dirs.join(" ")}
-        EOS
+            The following directories are not writable:
+            #{not_writable_dirs.join("\n")}
+
+            This can happen if you "sudo make install" software that isn't managed
+            by Homebrew. If a formula tries to write a file to this directory, the
+            install will fail during the link step.
+
+            You should change the ownership of these directories to your account.
+              sudo chown -R $(whoami) #{not_writable_dirs.join(" ")}
+          EOS
+        end
+        message unless message.empty?
       end
 
       def check_access_site_packages
